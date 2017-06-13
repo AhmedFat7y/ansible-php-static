@@ -1,0 +1,57 @@
+- hosts: uleague
+  vars_files:
+    - vars.yml
+    - vault.yml
+  vars:
+    project_location: /home/{{ deployer_user }}/html_site
+    home_dir: /home/{{ deployer_user }}
+    ansible_become_pass: "{{vault_ansible_become_pass}}"
+    deployer_pass: "{{vault_deployer_pass}}"
+  remote_user: "{{ sudo_user }}"
+  become: True
+  tasks:
+    - name: Install basic packages and so on
+      include_role:
+        name: basics
+      when: server_state ==  'SETUP'
+
+    - name: Create User that will handle running the app and deploy updates
+      include_role:
+        name: create-deployer-user
+      when: server_state ==  'SETUP'
+    
+    - name: Add my key to {{ sudo_user }}
+      authorized_key:
+        user: "{{sudo_user }}"
+        state: present
+        key: "{{ item }}"
+      with_file:
+        - ssh-keys/macair-fat7y.pub
+    # - name: Install PHP 7.1, required php packages for lumen
+    #   include_role:
+    #     name: php
+    #   when: server_state ==  'SETUP'
+
+    - name: Configure SSH service to disable password login
+      include_role:
+        name: configure-sshd-service
+      when: server_state ==  'SETUP'
+
+    # - name: Configure PHP FPM Pool with the deployer's user name
+    #   include_role:
+    #     name: configure-phpfpm-user
+    #   when: server_state ==  'SETUP'
+    
+    - name: Configure NGINX for static site
+      include_role:
+        name: configure-nginx-sites
+      when: server_state ==  'SETUP'
+
+    # - name: Install PHP Composer
+    #   include_role:
+    #     name: install-php-composer
+    #   when: server_state ==  'SETUP'
+
+    # - name: Deploy The lumen app
+    #   include_role:
+    #     name: deploy-lumen-app
